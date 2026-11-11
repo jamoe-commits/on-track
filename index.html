@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>On Track</title>
+  <meta name="description" content="Log the extra days you work and see if you’re on track for the school year.">
+
+  <!-- Home screen app: icon, name and window -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="On Track">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15171b" media="(prefers-color-scheme: dark)">
+
+  <link rel="stylesheet" href="styles.css">
+  <script src="logic.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">On Track</h1>
+    <button type="button" class="btn btn-ghost" id="settings-toggle" aria-controls="settings-view" aria-expanded="false">Settings</button>
+  </header>
+
+  <!-- Main screen -->
+  <noscript><p class="notice">On Track needs JavaScript switched on.</p></noscript>
+
+  <main id="home-view" class="view">
+    <div id="notices"></div>
+
+    <section class="gauge" aria-labelledby="verdict">
+      <p class="today-line" id="today-line"></p>
+      <h2 class="verdict" id="verdict" tabindex="-1">On track</h2>
+      <p class="verdict-detail" id="verdict-detail"></p>
+
+      <figure class="track" id="track-figure">
+        <svg id="track" class="track-svg" role="img" aria-labelledby="track-desc" focusable="false"></svg>
+        <figcaption class="visually-hidden" id="track-desc"></figcaption>
+      </figure>
+      <ul class="track-key" aria-hidden="true">
+        <li><span class="key-fill"></span>Days you’ve logged</li>
+        <li><span class="key-today"></span>Where you should be today</li>
+        <li id="key-short" hidden><span class="key-short"></span>Days you’re behind</li>
+      </ul>
+
+      <div class="track-error" id="track-error" hidden>
+        <p id="track-error-text"></p>
+        <button type="button" class="btn btn-secondary" id="fix-terms">Fix term dates</button>
+      </div>
+
+      <dl class="figures" id="figures">
+        <div>
+          <dt>Done</dt>
+          <dd><span id="fig-done">0</span> <span class="of" id="fig-target"></span></dd>
+        </div>
+        <div>
+          <dt>Due by today</dt>
+          <dd id="fig-expected">0</dd>
+        </div>
+        <div>
+          <dt>Earned</dt>
+          <dd><span id="fig-earned">£0</span> <span class="of" id="fig-target-income"></span></dd>
+        </div>
+      </dl>
+      <p class="pace-needed" id="pace-needed"></p>
+    </section>
+
+    <button type="button" class="btn btn-primary btn-wide" id="log-day">Log a day</button>
+
+    <section class="days" aria-labelledby="days-heading">
+      <h2 id="days-heading">Your days</h2>
+      <div id="day-list"></div>
+      <div class="empty" id="days-empty" hidden>
+        <p class="empty-title">No days logged yet</p>
+        <p>Each extra day you work goes here, and fills the track above.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings screen -->
+  <main id="settings-view" class="view" hidden>
+    <div class="settings-head">
+      <h2 tabindex="-1" id="settings-heading">Settings</h2>
+      <button type="button" class="btn btn-secondary" id="settings-done">Done</button>
+    </div>
+    <p class="hint">Changes save as you make them.</p>
+
+    <form id="settings-form" novalidate>
+      <section class="panel" aria-labelledby="target-heading">
+        <h3 id="target-heading">Your target</h3>
+        <div class="field">
+          <label for="target-days">Extra days a year</label>
+          <input id="target-days" name="targetDays" type="text" inputmode="decimal" autocomplete="off" aria-describedby="target-days-hint target-days-error" class="input input-short">
+          <p class="hint" id="target-days-hint">The days you need on top of your regular work to break even. 24 is an example.</p>
+          <p class="error" id="target-days-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="usual-rate">Usual day rate</label>
+          <div class="money">
+            <span class="money-sign" aria-hidden="true">£</span>
+            <input id="usual-rate" name="usualRate" type="text" inputmode="decimal" autocomplete="off" aria-describedby="usual-rate-hint usual-rate-error" class="input input-short">
+          </div>
+          <p class="hint" id="usual-rate-hint">£200 is an example. Put in yours.</p>
+          <p class="error" id="usual-rate-error" hidden></p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="terms-heading">
+        <h3 id="terms-heading">Term dates</h3>
+        <p class="hint" id="terms-hint">Typical England dates for 2026–27: check your council’s.</p>
+        <p class="error" id="terms-error" role="alert" hidden></p>
+        <div id="term-rows"></div>
+        <button type="button" class="btn btn-secondary" id="reset-terms">Use typical 2026–27 dates</button>
+      </section>
+
+      <section class="panel" aria-labelledby="closed-heading">
+        <h3 id="closed-heading">Extra closed days</h3>
+        <p class="hint">Bank holidays and training days that fall in term time.</p>
+        <ul class="closed-list" id="closed-list"></ul>
+        <div class="closed-add">
+          <div class="field">
+            <label for="closed-new">Add a closed day</label>
+            <input id="closed-new" type="date" class="input" aria-describedby="closed-error">
+          </div>
+          <button type="button" class="btn btn-secondary" id="closed-add">Add</button>
+        </div>
+        <p class="error" id="closed-error" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="backup-heading">
+        <h3 id="backup-heading">Backup</h3>
+        <p class="hint">Keep a copy somewhere safe, such as your email or cloud storage. Restore it on a new phone.</p>
+        <div class="button-row">
+          <button type="button" class="btn btn-secondary" id="export">Save backup</button>
+          <label class="btn btn-secondary file-btn" for="import-file">Restore backup</label>
+          <input type="file" id="import-file" class="visually-hidden" accept="application/json,.json">
+        </div>
+        <p class="error" id="import-error" role="alert" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="fresh-heading">
+        <h3 id="fresh-heading">Start fresh</h3>
+        <p class="hint">Deletes every logged day. Your settings stay.</p>
+        <button type="button" class="btn btn-danger" id="start-fresh">Delete all days</button>
+      </section>
+    </form>
+  </main>
+
+  <footer class="footer">
+    <p>Your days and earnings stay on this device. Nothing is sent anywhere.</p>
+  </footer>
+
+  <!-- Log or edit a day -->
+  <dialog id="day-dialog" class="sheet" aria-labelledby="day-dialog-title">
+    <form id="day-form" novalidate>
+      <div class="sheet-head">
+        <h2 id="day-dialog-title">Log a day</h2>
+        <button type="button" class="btn btn-ghost" id="day-cancel">Cancel</button>
+      </div>
+
+      <div class="field">
+        <label for="day-date">Date</label>
+        <input id="day-date" name="date" type="date" class="input" required aria-describedby="day-date-note day-date-error">
+        <p class="hint" id="day-date-note" hidden></p>
+        <p class="error" id="day-date-error" hidden></p>
+      </div>
+
+      <div class="field">
+        <label for="day-rate">Day rate</label>
+        <div class="money">
+          <span class="money-sign" aria-hidden="true">£</span>
+          <input id="day-rate" name="rate" type="text" inputmode="decimal" autocomplete="off" class="input input-short" aria-describedby="day-rate-note day-rate-error">
+        </div>
+        <p class="hint" id="day-rate-note" hidden></p>
+        <p class="error" id="day-rate-error" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="switch" for="day-half">
+          <input id="day-half" name="half" type="checkbox" role="switch">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span>Half day</span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label for="day-note">Note <span class="optional">(optional)</span></label>
+        <input id="day-note" name="note" type="text" class="input" maxlength="60" autocomplete="off" placeholder="School name, say" aria-describedby="day-note-hint">
+        <p class="hint visually-hidden" id="day-note-hint">Up to 60 characters.</p>
+      </div>
+
+      <div class="sheet-actions">
+        <button type="submit" class="btn btn-primary btn-wide" id="day-submit">Add day</button>
+        <button type="button" class="btn btn-danger-text" id="day-delete" hidden>Delete this day</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Are you sure? -->
+  <dialog id="confirm-dialog" class="sheet sheet-small" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-danger btn-wide" id="confirm-yes"></button>
+      <button type="button" class="btn btn-secondary btn-wide" id="confirm-no">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Short messages, with Undo where it helps -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span id="toast-text"></span>
+    <button type="button" class="btn btn-toast" id="toast-undo" hidden>Undo</button>
+  </div>
+</body>
+</html>
